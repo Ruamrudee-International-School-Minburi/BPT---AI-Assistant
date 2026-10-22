@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BPT — personal assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8F3EC; --bg2:#D5E8DC; --panel:rgba(255,255,255,.8); --ink:#0F2519; --muted:#4C6B5A;
+  --line:#B7D3C2; --pri:#147A45; --sec:#5B7A10; --warn:#B3261E; --ok:#147A45;
+  --display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#03110B; --bg2:#0A2016; --panel:rgba(9,33,22,.76); --ink:#DCF5E7; --muted:#7EA592;
+    --line:#18452F; --pri:#3BE08A; --sec:#B5E86A; --warn:#FF8A80; --ok:#3BE08A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#03110B; --bg2:#0A2016; --panel:rgba(9,33,22,.76); --ink:#DCF5E7; --muted:#7EA592;
+  --line:#18452F; --pri:#3BE08A; --sec:#B5E86A; --warn:#FF8A80; --ok:#3BE08A;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;height:100%;background-color:var(--bg);color:var(--ink);font:15px/1.5 var(--body);
+  background-image:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb,var(--pri) 12%,transparent), transparent 55%),
+    linear-gradient(var(--bg2) 1px,transparent 1px),linear-gradient(90deg,var(--bg2) 1px,transparent 1px);
+  background-size:auto,40px 40px,40px 40px;
+}
+body.staged{overflow:hidden}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;max-width:1500px;margin:0 auto;padding:12px 16px 16px;gap:12px}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font:700 28px/1 var(--display);letter-spacing:.22em;color:var(--pri)}
+.sub{color:var(--muted);font-size:13px}
+.clock{margin-left:auto;font:600 22px/1 var(--display);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.date{color:var(--muted);font-size:13px;text-align:right}
+.hbtns{display:flex;gap:6px;flex-wrap:wrap}
+.icon-btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;font-size:13px}
+.icon-btn:hover{border-color:var(--pri)}
+.icon-btn.primary{background:var(--pri);border-color:var(--pri);color:var(--bg);font-weight:600}
+
+main{display:grid;grid-template-columns:280px minmax(0,1fr) 320px;gap:12px;min-height:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);min-height:0}
+.side{overflow-y:auto;padding:14px}
+.side h2{font:600 15px/1.2 var(--display);letter-spacing:.08em;margin:18px 0 8px;color:var(--sec)}
+.side h2:first-child{margin-top:0}
+.row{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+.row span:first-child{color:var(--muted)}
+.row span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--bg2);overflow:hidden;margin:4px 0 8px}
+.bar i{display:block;height:100%;background:var(--pri);width:0;transition:width .6s}
+.perm{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--muted)}
+.dot.ok{background:var(--ok)} .dot.no{background:var(--warn)} .dot.ask{background:var(--sec)}
+.log{font-size:12.5px;color:var(--muted);max-height:180px;overflow-y:auto}
+.log div{padding:2px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 50%,transparent)}
+
+/* core */
+.core{width:min(210px,44vw);aspect-ratio:1;padding:0;border:0;background:none;border-radius:50%;display:block;-webkit-tap-highlight-color:transparent}
+.core svg{width:100%;height:100%;overflow:visible;display:block}
+.ring,.pulse{transform-origin:110px 110px;transform-box:view-box}
+.core .o{fill:none;stroke:var(--line);stroke-width:1}
+.core .ticks line{stroke:var(--muted);stroke-width:1.5}
+.core .a{fill:none;stroke:var(--sec);stroke-width:2;stroke-dasharray:120 18 40 18 6 18}
+.core .b{fill:none;stroke:var(--pri);stroke-width:5;stroke-dasharray:2 9;opacity:.9}
+.core .bd{fill:var(--pri)}
+.core .arc{fill:none;stroke:var(--sec);stroke-width:3;stroke-linecap:round}
+.core .halo{fill:color-mix(in srgb,var(--pri) 16%,transparent);stroke:var(--pri);stroke-width:1.5;transition:fill .3s}
+.core .dotc{fill:var(--pri)}
+.core:hover .halo{fill:color-mix(in srgb,var(--pri) 28%,transparent)}
+body.convo .core .o{stroke:var(--pri);stroke-width:2}
+body[data-state="listening"] .core .halo{fill:color-mix(in srgb,var(--pri) 38%,transparent)}
+.r1{animation:spin 40s linear infinite}
+.r2{animation:spin 26s linear infinite reverse}
+.r3{animation:spin 60s linear infinite}
+body[data-state="thinking"] .r1{animation-duration:4s}
+body[data-state="thinking"] .r2{animation-duration:3s}
+body[data-state="listening"] .pulse{animation:pulse 1.1s ease-in-out infinite}
+body[data-state="speaking"] .pulse{animation:pulse .45s ease-in-out infinite}
+body[data-state="thinking"] .pulse{animation:pulse 2s ease-in-out infinite}
+body[data-state="waiting"] .pulse{animation:pulse 2.4s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{transform:scale(1.12);opacity:.75}}
+@media (prefers-reduced-motion:reduce){.ring,.pulse{animation:none!important}}
+.state-label{font:600 14px/1 var(--display);letter-spacing:.2em;color:var(--muted);margin-top:6px}
+
+.center{display:grid;grid-template-rows:auto auto 1fr auto auto;min-height:0}
+.core-wrap{display:flex;flex-direction:column;align-items:center;padding:14px 10px 4px}
+.transcript{overflow-y:auto;padding:8px 18px;display:flex;flex-direction:column;gap:12px;min-height:160px}
+.msg{max-width:75ch;white-space:pre-wrap;word-wrap:break-word}
+.msg.user{align-self:flex-end;background:color-mix(in srgb,var(--sec) 14%,transparent);border:1px solid color-mix(in srgb,var(--sec) 35%,transparent);padding:8px 12px;border-radius:12px 12px 2px 12px}
+.msg.bot{align-self:flex-start;border-left:2px solid var(--pri);padding:2px 0 2px 12px}
+.msg.sys{align-self:center;color:var(--muted);font-size:13px;text-align:center;max-width:60ch}
+.msg .who{display:block;font:600 12px/1 var(--display);letter-spacing:.14em;color:var(--pri);margin-bottom:4px}
+.msg.user .who{color:var(--sec)}
+.toolnote{font-size:12px;color:var(--muted);font-style:italic}
+.empty{margin:auto;text-align:center;color:var(--muted);max-width:46ch}
+.empty b{color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 8px 3px 10px;display:flex;gap:6px;align-items:center;background:var(--bg2)}
+.chip button{border:0;background:none;padding:0;color:var(--muted)}
+.composer{display:flex;gap:8px;padding:10px 14px 14px;align-items:flex-end}
+.composer textarea,.stage-compose textarea{flex:1;resize:none;min-height:46px;max-height:140px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:11px 12px}
+.mic{width:52px;height:46px;border-radius:12px;border:1px solid var(--pri);background:transparent;color:var(--pri);font-size:20px;flex:none}
+.mic.on{background:var(--pri);color:var(--bg)}
+.send{height:46px;padding:0 18px;border-radius:12px;border:0;background:var(--pri);color:var(--bg);font-weight:600;flex:none}
+.send.stop{background:var(--warn)}
+
+.tool{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+.tool h3{margin:0 0 6px;font:600 14px/1.2 var(--display);letter-spacing:.06em}
+.tool p{margin:0 0 8px;font-size:12.5px;color:var(--muted)}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.btn{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 10px;font-size:13px}
+.btn:hover{border-color:var(--pri)}
+.btn.on{border-color:var(--pri);color:var(--pri)}
+video{width:100%;border-radius:8px;background:#000;display:none;margin-bottom:6px}
+video.live{display:block}
+.list{font-size:13px;margin:6px 0 0;padding:0;list-style:none}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.list button{border:0;background:none;color:var(--muted);padding:0 2px}
+select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:4px 6px;font-size:13px;max-width:100%}
+label.sw{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0}
+.status{font-size:12.5px;color:var(--muted);margin:2px 0 8px 24px}
+.banner{margin:8px 14px 0;padding:8px 12px;border-radius:10px;border:1px solid var(--warn);color:var(--warn);font-size:13px;display:none}
+.banner.show{display:block}
+.blocked{font-size:12px;color:var(--muted);margin:6px 0 0}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.loc-manual{display:flex;gap:6px;margin-top:8px}
+.loc-manual input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 8px;font-size:13px}
+
+/* conversation stage */
+.stage{position:fixed;inset:0;z-index:50;background:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));overflow-y:auto;text-align:center}
+.stage[hidden]{display:none}
+.stage .core{width:min(340px,68vw,48vh)}
+.stage .brand{font-size:22px}
+.cap{max-width:60ch;margin:0;min-height:1.5em}
+.cap.you{color:var(--muted);font-size:17px}
+.cap.bot{font-size:21px;line-height:1.45}
+.hint{font-size:13px;color:var(--muted);margin:0;max-width:56ch}
+.stage-compose{display:flex;gap:8px;width:min(640px,100%)}
+.end{border:1px solid var(--warn);color:var(--warn);background:transparent;border-radius:10px;padding:8px 16px}
+
+@media (max-width:1100px){
+  main{grid-template-columns:minmax(0,1fr) 300px}
+  .telemetry{grid-column:1 / -1;order:3}
+}
+@media (max-width:760px){
+  html,body{height:auto}
+  .app{height:auto}
+  main{grid-template-columns:minmax(0,1fr)}
+  .center{min-height:80vh}
+  .tools{order:2} .telemetry{order:3}
+  .side{overflow:visible}
+  .clock{margin-left:0}
+}
+</style>
+</head>
+<body data-state="idle">
+<div class="app">
+  <header>
+    <div>
+      <div class="brand">BPT</div>
+      <div class="sub">Say “Hey BoPoTo” or tap the core to talk</div>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="date" id="date"></div>
+    <div class="hbtns">
+      <button class="icon-btn primary" id="convoBtn">Conversation mode</button>
+      <button class="icon-btn" id="exportBtn">Save log</button>
+      <button class="icon-btn" id="clearBtn">Clear</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel side telemetry" aria-label="Device telemetry">
+      <h2>Power</h2>
+      <div class="row"><span>Battery</span><span id="batt">—</span></div>
+      <div class="bar"><i id="battBar"></i></div>
+      <div class="row"><span>Charging</span><span id="charging">—</span></div>
+      <h2>Network</h2>
+      <div class="row"><span>Status</span><span id="online">—</span></div>
+      <div class="row"><span>Type</span><span id="netType">—</span></div>
+      <div class="row"><span>Downlink</span><span id="downlink">—</span></div>
+      <div class="row"><span>Latency</span><span id="rtt">—</span></div>
+      <h2>System</h2>
+      <div class="row"><span>Platform</span><span id="platform">—</span></div>
+      <div class="row"><span>CPU threads</span><span id="cores">—</span></div>
+      <div class="row"><span>Memory</span><span id="mem">—</span></div>
+      <div class="row"><span>Screen</span><span id="screen">—</span></div>
+      <div class="row"><span>Viewport</span><span id="viewport">—</span></div>
+      <div class="row"><span>Language</span><span id="lang">—</span></div>
+      <div class="row"><span>Time zone</span><span id="tz">—</span></div>
+      <div class="row"><span>Touch points</span><span id="touch">—</span></div>
+      <div class="row"><span>Session</span><span id="uptime">—</span></div>
+      <h2>Location</h2>
+      <div class="row"><span>Coordinates</span><span id="coords">Not requested</span></div>
+      <div class="row"><span>Accuracy</span><span id="acc">—</span></div>
+      <div class="btns" style="margin-top:6px"><button class="btn" id="locBtn">Get location</button></div>
+      <div class="loc-manual"><input id="cityIn" placeholder="Or type your city" aria-label="Your city or area"><button class="btn" id="citySave">Save</button></div>
+      <div id="locNote"></div>
+      <h2>Motion</h2>
+      <div class="row"><span>Tilt (β / γ)</span><span id="tilt">—</span></div>
+      <div class="row"><span>Heading (α)</span><span id="heading">—</span></div>
+      <div class="btns" style="margin-top:6px"><button class="btn" id="motionBtn">Start motion sensors</button></div>
+      <div id="motionNote"></div>
+      <h2>Access</h2>
+      <div id="perms"></div>
+      <h2>Event log</h2>
+      <div class="log" id="log"></div>
+    </section>
+
+    <section class="panel center" aria-label="Assistant">
+      <div class="core-wrap">
+        <button class="core" id="coreBtn" aria-label="Start voice chat"></button>
+        <div class="state-label" id="stateLabel">tap to talk</div>
+      </div>
+      <div class="banner" id="banner"></div>
+      <div class="transcript" id="transcript" aria-live="polite">
+        <div class="empty" id="empty">
+          Tap the green core above to start a voice chat. BPT answers, then waits for your reply, until you say <b>“goodbye”</b>. You can also type, or say <b>“Hey BoPoTo”</b> any time. Try <b>“How's my battery?”</b> or <b>“Set a 10 minute timer for tea.”</b>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="composer">
+        <button class="mic" id="micBtn" title="Say one thing (or hold Space)" aria-label="Voice input">🎙</button>
+        <textarea id="input" rows="1" placeholder="Ask BPT anything…" aria-label="Message"></textarea>
+        <button class="send" id="sendBtn">Send</button>
+      </div>
+    </section>
+
+    <section class="panel side tools" aria-label="Device tools">
+      <h2>Brain</h2>
+      <div class="tool" id="brainTool">
+        <p>BPT thinks with your Claude account. The first message asks you to allow it.</p>
+        <label class="sw">Thinking <select id="modelSel">
+          <option value="quick">Fast (best for voice)</option>
+          <option value="default">Balanced</option>
+          <option value="complex">Deep</option>
+        </select></label>
+      </div>
+      <h2>Voice</h2>
+      <div class="tool">
+        <label class="sw"><input type="checkbox" id="wakeOn"> Wake words: “Hey BoPoTo” or “BPT”</label>
+        <div class="status" id="wakeStatus"></div>
+        <label class="sw"><input type="checkbox" id="speakOn" checked> Speak replies aloud</label>
+        <label class="sw"><input type="checkbox" id="autoSend"> Send when I stop dictating (2-second pause)</label>
+        <label class="sw">Voice <select id="voiceSel"></select></label>
+        <label class="sw">Speed <input type="range" id="rate" min="0.7" max="1.6" step="0.1" value="1.05"></label>
+      </div>
+      <h2>Senses</h2>
+      <div class="tool" id="camTool">
+        <h3>Camera</h3>
+        <video id="cam" playsinline muted></video>
+        <div class="btns">
+          <button class="btn" id="camBtn">Turn on camera</button>
+          <button class="btn" id="flipBtn" disabled>Flip</button>
+          <button class="btn" id="snapBtn" disabled>Show BPT this</button>
+          <button class="btn" id="photoBtn">Take photo</button>
+          <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+        </div>
+      </div>
+      <div class="tool" id="screenTool">
+        <h3>Screen</h3>
+        <p>Share a window or tab once and BPT gets a single snapshot of it.</p>
+        <div class="btns"><button class="btn" id="screenBtn">Share a screen snapshot</button></div>
+      </div>
+      <div class="tool" id="filesTool">
+        <h3>Files</h3>
+        <p>Text, code, CSV and images. They stay on this device until you send a message.</p>
+        <input type="file" id="fileIn" multiple hidden>
+        <div class="btns">
+          <button class="btn" id="fileBtn">Open files</button>
+          <button class="btn" id="pasteBtn">Paste clipboard</button>
+        </div>
+      </div>
+      <h2>Timers</h2>
+      <div class="tool"><ul class="list" id="timers"></ul></div>
+      <h2>Notes</h2>
+      <div class="tool"><ul class="list" id="notes"></ul></div>
+      <h2>Device</h2>
+      <div class="tool" id="deviceTool">
+        <div class="btns">
+          <button class="btn" id="wakeLockBtn">Keep screen awake</button>
+          <button class="btn" id="notifBtn">Allow notifications</button>
+          <button class="btn" id="themeBtn">Switch theme</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="stage" id="stage" hidden role="dialog" aria-label="Conversation mode">
+  <div class="brand">BPT</div>
+  <button class="core" id="stageCore" aria-label="End conversation"></button>
+  <div class="state-label" id="stageState">listening</div>
+  <p class="cap you" id="capYou"></p>
+  <p class="cap bot" id="capBot"></p>
+  <p class="hint" id="stageHint"></p>
+  <div class="stage-compose">
+    <textarea id="stageInput" rows="1" placeholder="Type or dictate…" aria-label="Message"></textarea>
+    <button class="send" id="stageSend">Send</button>
+  </div>
+  <button class="end" id="endBtn">End conversation</button>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+
+/* ================= state (declared first) ================= */
+const started = Date.now();
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem("vega:"+k); return v==null ? d : JSON.parse(v);}catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem("vega:"+k, JSON.stringify(v)); }catch{} }
+};
+const dev = {}, perms = {};
+let timers = [], notes = store.get("notes", []), pending = [];
+let hist = store.get("history_bpt", []);
+let turns = hist.map(m=>({role:m.role, content:m.content})).slice(-20);
+let camStream = null, facing = "user", wakeLock = null;
+let sample = null, downloads = null, ctl = null, busy = false;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+const micFramed = !!(document.featurePolicy && document.featurePolicy.allowsFeature && !document.featurePolicy.allowsFeature("microphone"));
+let rec = null, listening = false, micOK = null, micErr = "", convo = false, misses = 0;
+let speaking = false, speakToken = 0, wakeFails = 0, wakeRetry = null, dictTimer = null, actx = null, dictWarned = false, geoBlocked = false;
+
+/* ================= log & state display ================= */
+function log(msg){
+  const d = document.createElement("div");
+  d.textContent = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"}) + "  " + msg;
+  $("log").prepend(d);
+  while($("log").children.length > 60) $("log").lastChild.remove();
+}
+addEventListener("error", e=>{ try{ log("Page error: "+e.message); }catch{} });
+addEventListener("unhandledrejection", e=>{ try{ log("Page error: "+((e.reason&&e.reason.message)||e.reason)); }catch{} });
+
+const stateText = {listening:"listening", thinking:"thinking", speaking:"speaking", waiting:"your turn"};
+function idleLabel(){ return (rec && rec._mode==="wake") ? "say “hey BoPoTo”" : "tap to talk"; }
+function setState(s){
+  document.body.dataset.state = s;
+  const t = s==="idle" ? idleLabel() : stateText[s];
+  $("stateLabel").textContent = t; $("stageState").textContent = t;
+  $("coreBtn").setAttribute("aria-label", convo ? "End voice chat" : "Start voice chat");
+}
+
+function coreSVG(){
+  let ticks = "";
+  for(let i=0;i<60;i++){ const a=i*6*Math.PI/180, r1=i%5?99:95, r2=104;
+    ticks += `<line x1="${(110+r1*Math.sin(a)).toFixed(2)}" y1="${(110-r1*Math.cos(a)).toFixed(2)}" x2="${(110+r2*Math.sin(a)).toFixed(2)}" y2="${(110-r2*Math.cos(a)).toFixed(2)}"/>`; }
+  return `<svg viewBox="0 0 220 220" aria-hidden="true">
+    <g class="ring r3"><circle class="o" cx="110" cy="110" r="104"/><g class="ticks">${ticks}</g></g>
+    <g class="ring r1"><circle class="a" cx="110" cy="110" r="88"/></g>
+    <g class="ring r2"><circle class="b" cx="110" cy="110" r="72"/><circle class="bd" cx="110" cy="38" r="4"/></g>
+    <g class="ring r1"><path class="arc" d="M110 58 A52 52 0 0 1 162 110"/><path class="arc" d="M110 162 A52 52 0 0 1 58 110"/></g>
+    <g class="pulse"><circle class="halo" cx="110" cy="110" r="34"/><circle class="dotc" cx="110" cy="110" r="14"/></g>
+  </svg>`;
+}
+
+/* ================= clock ================= */
+function tick(){
+  const n = new Date();
+  $("clock").textContent = n.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  $("date").textContent = n.toLocaleDateString([], {weekday:"long", month:"long", day:"numeric"});
+  const s = Math.floor((Date.now()-started)/1000);
+  $("uptime").textContent = `${Math.floor(s/60)}m ${String(s%60).padStart(2,"0")}s`;
+  renderTimers();
+}
+
+/* ================= telemetry ================= */
+async function initBattery(){
+  if(!navigator.getBattery){ $("batt").textContent="Not exposed"; setPerm("battery","no","not exposed"); return; }
+  try{
+    const b = await navigator.getBattery();
+    const upd = () => {
+      dev.battery = Math.round(b.level*100); dev.charging = b.charging;
+      $("batt").textContent = dev.battery + "%"; $("battBar").style.width = dev.battery + "%";
+      $("charging").textContent = b.charging ? "Yes" : "No";
+    };
+    upd(); ["levelchange","chargingchange"].forEach(e=>b.addEventListener(e, ()=>{upd(); log("Battery "+dev.battery+"%"+(b.charging?" charging":""));}));
+    setPerm("battery","ok","reading");
+  }catch{ $("batt").textContent="Blocked"; setPerm("battery","no","blocked"); }
+}
+function updNet(){
+  dev.online = navigator.onLine;
+  $("online").textContent = navigator.onLine ? "Online" : "Offline";
+  const c = navigator.connection;
+  if(c){
+    dev.net = {type:c.effectiveType, downlinkMbps:c.downlink, rttMs:c.rtt, saveData:c.saveData};
+    $("netType").textContent = (c.type ? c.type+" / " : "") + (c.effectiveType||"—");
+    $("downlink").textContent = c.downlink!=null ? c.downlink+" Mb/s" : "—";
+    $("rtt").textContent = c.rtt!=null ? c.rtt+" ms" : "—";
+  } else { $("netType").textContent = "Not exposed"; }
+}
+function updSys(){
+  const ua = navigator.userAgentData;
+  $("platform").textContent = (ua && ua.platform) || navigator.platform || "—";
+  $("cores").textContent = navigator.hardwareConcurrency || "—";
+  $("mem").textContent = navigator.deviceMemory ? "≈ " + navigator.deviceMemory + " GB" : "Not exposed";
+  $("screen").textContent = `${screen.width}×${screen.height} @${devicePixelRatio}x`;
+  $("viewport").textContent = `${innerWidth}×${innerHeight}`;
+  $("lang").textContent = navigator.language;
+  $("tz").textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  $("touch").textContent = navigator.maxTouchPoints;
+}
+function deviceStatus(){
+  return {
+    time: new Date().toString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    batteryPercent: dev.battery ?? "unavailable", charging: dev.charging ?? "unavailable",
+    online: navigator.onLine, network: dev.net || "unavailable",
+    platform: (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform,
+    cpuThreads: navigator.hardwareConcurrency, memoryGB: navigator.deviceMemory || "unavailable",
+    screen: `${screen.width}x${screen.height}`, viewport: `${innerWidth}x${innerHeight}`,
+    language: navigator.language, touchPoints: navigator.maxTouchPoints,
+    location: dev.loc || "GPS not available", typedLocation: store.get("city","") || "not set", motion: dev.motion || "not active",
+    cameraOn: !!camStream, screenKeptAwake: !!wakeLock
+  };
+}
+
+/* ================= permissions panel ================= */
+function setPerm(name, st, note){ perms[name] = {st, note}; renderPerms(); }
+function renderPerms(){
+  $("perms").innerHTML = "";
+  Object.entries(perms).forEach(([k,v])=>{
+    const d = document.createElement("div"); d.className="perm";
+    const a = document.createElement("span"); a.innerHTML = `<i class="dot ${v.st}"></i>`; a.append(k);
+    const b = document.createElement("span"); b.style.color = "var(--muted)"; b.textContent = v.note;
+    d.append(a,b); $("perms").append(d);
+  });
+}
+function watchPerm(n){
+  setPerm(n,"ask","not asked");
+  try{
+    navigator.permissions.query({name:n}).then(p=>{
+      const map = s => s==="granted"?["ok","allowed"]:s==="denied"?["no","blocked"]:["ask","will ask"];
+      if(p.state==="denied") denied(n);
+      if(perms[n] && /frame/.test(perms[n].note)) return;
+      setPerm(n,...map(p.state)); p.onchange = ()=>setPerm(n,...map(p.state));
+    }).catch(()=>{});
+  }catch{}
+}
+
+/* ================= location & motion ================= */
+function getLocation(){
+  return new Promise(res=>{
+    if(!navigator.geolocation || geoBlocked){ res(cityResult(geoBlocked ? "GPS is blocked in this view" : "Geolocation not supported")); return; }
+    $("coords").textContent = "Locating…";
+    navigator.geolocation.getCurrentPosition(p=>{
+      dev.loc = {lat:+p.coords.latitude.toFixed(5), lon:+p.coords.longitude.toFixed(5), accuracyM:Math.round(p.coords.accuracy)};
+      $("coords").textContent = `${dev.loc.lat}, ${dev.loc.lon}`; $("acc").textContent = "±"+dev.loc.accuracyM+" m";
+      setPerm("geolocation","ok","allowed"); log("Location acquired"); res(dev.loc);
+    }, e=>{
+      const c = store.get("city","");
+      $("coords").textContent = c ? c+" (typed)" : (e.code===1 ? "Blocked here" : "Unavailable");
+      if(e.code===1) denied("geolocation");
+      setPerm("geolocation","no", e.code===1?"blocked":"unavailable"); log("Location failed: "+e.message);
+      res(cityResult(e.message || "Location unavailable"));
+    }, {enableHighAccuracy:true, timeout:12000});
+  });
+}
+async function startMotion(){
+  try{
+    if(typeof DeviceOrientationEvent!=="undefined" && DeviceOrientationEvent.requestPermission){
+      const r = await DeviceOrientationEvent.requestPermission(); if(r!=="granted") throw new Error("denied");
+    }
+    let got = false;
+    addEventListener("deviceorientation", e=>{
+      if(e.beta==null) return; got = true;
+      dev.motion = {betaDeg:Math.round(e.beta), gammaDeg:Math.round(e.gamma), alphaDeg:e.alpha!=null?Math.round(e.alpha):null};
+      $("tilt").textContent = `${dev.motion.betaDeg}° / ${dev.motion.gammaDeg}°`;
+      $("heading").textContent = dev.motion.alphaDeg!=null ? dev.motion.alphaDeg+"°" : "—";
+    });
+    $("motionBtn").classList.add("on"); $("motionBtn").textContent = "Motion sensors on";
+    setTimeout(()=>{ if(!got){ $("tilt").textContent="No sensor"; log("No motion sensor reported"); } }, 2500);
+  }catch{ $("tilt").textContent = "Blocked"; log("Motion access blocked"); }
+}
+
+/* ================= camera & screen ================= */
+async function startCam(){
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}, audio:false});
+    $("cam").srcObject = camStream; await $("cam").play(); $("cam").classList.add("live");
+    $("camBtn").textContent = "Turn off camera"; $("camBtn").classList.add("on");
+    $("snapBtn").disabled = false; $("flipBtn").disabled = false;
+    setPerm("camera","ok","allowed"); log("Camera on");
+  }catch(e){ setPerm("camera","no","blocked"); log("Camera failed: "+(e.name||e.message)); denied("camera"); sys("The live camera is blocked here. Use Take photo instead."); }
+}
+function stopCam(){
+  camStream && camStream.getTracks().forEach(t=>t.stop()); camStream = null;
+  $("cam").classList.remove("live"); $("camBtn").textContent = "Turn on camera"; $("camBtn").classList.remove("on");
+  $("snapBtn").disabled = true; $("flipBtn").disabled = true; log("Camera off");
+}
+function frameToBlob(video){
+  const c = document.createElement("canvas"); const w = video.videoWidth, h = video.videoHeight;
+  const scale = Math.min(1, 1280/Math.max(w,h)); c.width = Math.round(w*scale); c.height = Math.round(h*scale);
+  c.getContext("2d").drawImage(video,0,0,c.width,c.height);
+  return new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
+}
+async function screenSnap(){
+  try{
+    const s = await navigator.mediaDevices.getDisplayMedia({video:true});
+    const v = document.createElement("video"); v.srcObject = s; v.muted = true; await v.play();
+    await new Promise(r=>setTimeout(r,350));
+    const b = await frameToBlob(v); s.getTracks().forEach(t=>t.stop());
+    attach({kind:"image", name:"screen snapshot", blob:b}); log("Screen snapshot attached");
+  }catch(e){ log("Screen share failed: "+(e.name||e.message)); sys("Screen sharing is blocked or was cancelled."); }
+}
+
+/* ================= blocked-feature handling ================= */
+const policy = document.permissionsPolicy || document.featurePolicy;
+function allowed(f){
+  try{
+    if(!policy || !policy.allowsFeature) return true;
+    if(policy.features && !policy.features().includes(f)) return true;
+    return policy.allowsFeature(f);
+  }catch{ return true; }
+}
+const NOTE = {
+  cam:"Live camera is blocked in this view. Take photo opens your camera app on phones, or lets you pick an image on a computer.",
+  geo:"GPS is blocked in this view. Type your city above, or just tell BPT where you are.",
+  screen:"Screen sharing is blocked in this view. Take a screenshot, then paste it into the message box (Ctrl/⌘+V) or open it with Open files.",
+  clip:"Clipboard reading is blocked here. Paste with Ctrl/⌘+V in the message box instead.",
+  wake:"Keeping the screen awake is blocked in this view.",
+  motion:"Motion sensors are blocked in this view.",
+  notif:"Notifications are blocked in this view. Timers still alert you with a chime, voice and vibration."
+};
+const noted = new Set();
+function markBlocked(ids, note, hostId){
+  ids.forEach(id=>{ const b = $(id); if(b){ b.disabled = true; b.title = note; } });
+  if(hostId && !noted.has(hostId+note)){ noted.add(hostId+note); const p = document.createElement("p"); p.className = "blocked"; p.textContent = note; $(hostId).append(p); }
+}
+function denied(n){
+  if(n==="camera") markBlocked(["camBtn","flipBtn","snapBtn"], NOTE.cam, "camTool");
+  else if(n==="geolocation"){ geoBlocked = true; markBlocked(["locBtn"], NOTE.geo, "locNote"); if(!store.get("city","")) $("coords").textContent = "Blocked here"; }
+  else if(n==="microphone"){ micOK = false; $("wakeOn").disabled = true; $("micBtn").title = "The mic is blocked here. Tap for dictation instructions."; updWakeUI(); }
+  else if(n==="notifications") markBlocked(["notifBtn"], NOTE.notif, "deviceTool");
+}
+function applyPolicy(){
+  if(!allowed("camera")){ denied("camera"); setPerm("camera","no","blocked by page frame"); }
+  if(!allowed("geolocation")){ denied("geolocation"); setPerm("geolocation","no","blocked by page frame"); }
+  if(micFramed) denied("microphone");
+  if(!allowed("display-capture")) markBlocked(["screenBtn"], NOTE.screen, "screenTool");
+  if(!allowed("clipboard-read")) markBlocked(["pasteBtn"], NOTE.clip, "filesTool");
+  if(!allowed("screen-wake-lock")) markBlocked(["wakeLockBtn"], NOTE.wake, "deviceTool");
+  if(!allowed("accelerometer") && !allowed("gyroscope")) markBlocked(["motionBtn"], NOTE.motion, "motionNote");
+  if(!("Notification" in window) || Notification.permission==="denied") denied("notifications");
+}
+function saveCity(v){
+  v = String(v||"").trim().slice(0,80);
+  store.set("city", v); $("cityIn").value = v;
+  if(!dev.loc) $("coords").textContent = v ? v+" (typed)" : (geoBlocked ? "Blocked here" : "Not requested");
+  log(v ? "Location set to "+v : "Typed location cleared");
+  return {ok:true, typedLocation: v || null};
+}
+function cityResult(err){
+  const c = store.get("city","");
+  return c ? {typedLocation:c, note:"GPS unavailable ("+err+"); this is the place the user told you."}
+           : {error: err + ". Ask the user which city they're in, then save it with set_location."};
+}
+function cityLine(){
+  const c = store.get("city","");
+  return c ? "The user has told you they are in: " + c + "." : "The user's location is unknown and GPS is usually blocked here. If location matters, ask them and save it with set_location.";
+}
+
+/* ================= attachments ================= */
+function attach(a){ pending.push(a); renderChips(); }
+function renderChips(){
+  $("chips").innerHTML = "";
+  pending.forEach((a,i)=>{
+    const c = document.createElement("span"); c.className = "chip";
+    c.textContent = (a.kind==="image"?"🖼 ":"📄 ") + a.name;
+    const x = document.createElement("button"); x.textContent = "✕"; x.setAttribute("aria-label","Remove "+a.name);
+    x.onclick = ()=>{ pending.splice(i,1); renderChips(); }; c.append(x); $("chips").append(c);
+  });
+}
+
+/* ================= timers & notes ================= */
+function setTimer(seconds, label){
+  seconds = Math.max(1, Math.round(Number(seconds)||0)); label = String(label||"Timer").slice(0,60);
+  const t = {label, ends:Date.now()+seconds*1000};
+  t.handle = setTimeout(()=>timerDone(t), seconds*1000); timers.push(t); renderTimers(); log(`Timer "${label}" set`);
+  return {ok:true, label, seconds, endsAt:new Date(t.ends).toLocaleTimeString()};
+}
+function timerDone(t){
+  timers = timers.filter(x=>x!==t); renderTimers();
+  const msg = `${t.label} timer is done.`;
+  sys("⏰ "+msg); chime(); buzz([300,150,300]); notify("BPT", msg); log(msg);
+  if(!busy) say(msg, convo ? afterReply : undefined);
+}
+function renderTimers(){
+  const ul = $("timers"); if(!timers.length){ ul.innerHTML = '<li><span class="toolnote">No timers running</span></li>'; return; }
+  ul.innerHTML = "";
+  timers.forEach(t=>{
+    const s = Math.max(0, Math.round((t.ends-Date.now())/1000));
+    const li = document.createElement("li"); const a = document.createElement("span");
+    a.textContent = `${t.label} — ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+    const x = document.createElement("button"); x.textContent = "✕"; x.setAttribute("aria-label","Cancel "+t.label);
+    x.onclick = ()=>{ clearTimeout(t.handle); timers = timers.filter(y=>y!==t); renderTimers(); log(`Timer "${t.label}" cancelled`); };
+    li.append(a,x); ul.append(li);
+  });
+}
+function renderNotes(){
+  const ul = $("notes"); ul.innerHTML = "";
+  if(!notes.length){ ul.innerHTML = '<li><span class="toolnote">Ask BPT to note something down</span></li>'; return; }
+  notes.forEach((n,i)=>{
+    const li = document.createElement("li"); const a = document.createElement("span"); a.textContent = n.text;
+    const x = document.createElement("button"); x.textContent = "✕"; x.setAttribute("aria-label","Delete note");
+    x.onclick = ()=>{ notes.splice(i,1); store.set("notes",notes); renderNotes(); };
+    li.append(a,x); ul.append(li);
+  });
+}
+
+/* ================= device bits ================= */
+function notify(title, body){
+  try{ if("Notification" in window && Notification.permission==="granted"){ new Notification(title,{body}); return true; } }catch{}
+  return false;
+}
+function buzz(p){ try{ return navigator.vibrate ? navigator.vibrate(p) : false; }catch{ return false; } }
+function chime(){
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    actx.resume && actx.resume();
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(660,t); o.frequency.linearRampToValueAtTime(990,t+.12);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.18,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+.28);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+.3);
+  }catch{}
+}
+
+/* ================= transcript ================= */
+function hideEmpty(){ const e = $("empty"); e && e.remove(); }
+function addMsg(role, text){
+  hideEmpty();
+  const d = document.createElement("div"); d.className = "msg " + role;
+  if(role!=="sys"){ const w = document.createElement("span"); w.className="who"; w.textContent = role==="user"?"You":"BPT"; d.append(w); }
+  const body = document.createElement("span"); body.textContent = text; d.append(body);
+  $("transcript").append(d); $("transcript").scrollTop = $("transcript").scrollHeight;
+  return body;
+}
+function sys(t){ addMsg("sys", t); }
+function banner(t){ $("banner").textContent = t; $("banner").classList.toggle("show", !!t); }
+
+/* ================= speech out ================= */
+function loadVoices(){
+  if(!synth){ $("voiceSel").innerHTML = "<option>Not supported</option>"; return; }
+  const vs = synth.getVoices(); if(!vs.length) return;
+  const saved = store.get("voice", null);
+  $("voiceSel").innerHTML = "";
+  vs.forEach(v=>{ const o = document.createElement("option"); o.value = v.name; o.textContent = `${v.name} (${v.lang})`;
+    if(saved ? v.name===saved : (v.lang.startsWith("en") && /google uk english male|daniel|arthur|george|male/i.test(v.name))) o.selected = true;
+    $("voiceSel").append(o); });
+}
+function clean(t){ return t.replace(/[*_`#>]/g,"").replace(/\[(.*?)\]\(.*?\)/g,"$1"); }
+function stopSpeaking(){ speakToken++; speaking = false; try{ synth && synth.cancel(); }catch{} }
+function say(text, after){
+  let fired = false;
+  const done = () => { if(fired) return; fired = true; speaking = false; if(after) after(); else if(!convo){ setState("idle"); startWake(); } };
+  if(!synth || !$("speakOn").checked || !text){ done(); return; }
+  stopSpeaking(); killRec();
+  const tok = speakToken; speaking = true;
+  const spoken = clean(text).replace(/\bB\.?P\.?T\b/g, "Bo-Po-To");
+  const parts = (spoken.match(/[^.!?]+[.!?]+["')]*\s*|[^.!?]+$/g) || [spoken]).map(p=>p.trim()).filter(Boolean);
+  const voice = synth.getVoices().find(v=>v.name===$("voiceSel").value);
+  const rate = Number($("rate").value);
+  parts.forEach((p,i)=>{
+    const u = new SpeechSynthesisUtterance(p); if(voice) u.voice = voice; u.rate = rate;
+    if(i===0) u.onstart = ()=>{ if(tok===speakToken) setState("speaking"); };
+    if(i===parts.length-1) u.onend = u.onerror = ()=>{ if(tok===speakToken) done(); };
+    synth.speak(u);
+  });
+  setTimeout(()=>{ if(tok===speakToken && !fired){ try{ synth.cancel(); }catch{} done(); } }, (spoken.length/11/rate + 6)*1000);
+}
+
+/* ================= speech in ================= */
+function dictHint(){
+  const ua = navigator.userAgent;
+  if(/iPhone|iPad|iPod|Android/i.test(ua)) return "tap the microphone key on your keyboard";
+  if(/Mac/i.test(ua)) return "press the Fn (🌐) key twice";
+  if(/Windows/i.test(ua)) return "press Windows + H";
+  return "start your system's dictation";
+}
+function micBlockedMsg(name){
+  return "The browser won't give this page the microphone" + (name ? " ("+name+")" : "") +
+    ". For voice, " + dictHint() + " to dictate into the message box. BPT sends after a 2-second pause, answers, then waits for your next reply.";
+}
+async function ensureMic(force){
+  if(micOK===true) return true;
+  if(!SR || micFramed){ micOK = false; micErr = !SR ? "speech recognition unsupported" : ""; if(micFramed) setPerm("microphone","no","blocked by page frame"); updWakeUI(); return false; }
+  if(micOK===false && !force) return false;
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({audio:true});
+    s.getTracks().forEach(t=>t.stop());
+    micOK = true; setPerm("microphone","ok","allowed");
+  }catch(e){ micOK = false; micErr = e.name || "blocked"; setPerm("microphone","no","blocked"); log("Mic blocked: "+micErr); $("wakeOn").disabled = true; }
+  updWakeUI();
+  return micOK;
+}
+function killRec(){
+  const r = rec; rec = null; listening = false; clearTimeout(wakeRetry);
+  $("micBtn").classList.remove("on");
+  try{ r && r.abort(); }catch{}
+}
+function listenOnce(){
+  if(!SR || micOK!==true){ if(convo) dictationTurn(); return; }
+  killRec();
+  const r = new SR(); r._mode = "turn"; rec = r;
+  r.lang = navigator.language || "en-US"; r.interimResults = true; r.continuous = false;
+  let finalText = "";
+  $("stageHint").textContent = convo ? "Say “goodbye” when you're done." : "";
+  r.onstart = ()=>{ if(rec!==r) return; listening = true; $("micBtn").classList.add("on"); setState("listening"); };
+  r.onresult = e => {
+    if(rec!==r) return;
+    let interim = ""; finalText = "";
+    for(const x of e.results){ if(x.isFinal) finalText += x[0].transcript; else interim += x[0].transcript; }
+    const t = finalText || interim;
+    $("capYou").textContent = t;
+    if($("stage").hidden) { $("input").value = t; autoSize($("input")); }
+  };
+  r.onerror = e => {
+    if(rec!==r) return;
+    if(e.error==="not-allowed" || e.error==="service-not-allowed"){ r._blocked = true; micOK = false; setPerm("microphone","no","blocked"); updWakeUI(); }
+    else if(e.error==="network"){ r._blocked = true; sys("The browser's speech recognition service couldn't be reached. Typing still works."); }
+    else if(e.error!=="no-speech" && e.error!=="aborted") log("Voice input error: "+e.error);
+  };
+  r.onend = () => {
+    if(rec!==r) return;
+    rec = null; listening = false; $("micBtn").classList.remove("on");
+    const t = finalText.trim();
+    if(t){ misses = 0; send(t); return; }
+    if(r._blocked){ if(micOK===false){ if(convo) dictationTurn(); else sys(micBlockedMsg(micErr)); } else if(convo) endConvo(); else setState("idle"); return; }
+    if(convo){
+      misses++;
+      if(misses >= 2){ endConvo("I'll be here if you need me."); }
+      else listenOnce();
+      return;
+    }
+    setState("idle"); startWake();
+  };
+  try{ r.start(); }catch(e){ rec = null; log("Mic start failed: "+e.message); }
+}
+function stopTurn(){ try{ rec && rec._mode==="turn" && rec.stop(); }catch{} }
+
+/* ---------- wake words ---------- */
+const G = "(?:(?:hey|hi|ok|okay|yo|hello)\\s+)?";
+const WAKE = [
+  new RegExp("\\b" + G + "(?:bo|bow|beau|boe|bo)\\s*(?:po|poe|paw|pa|pu|pow)\\s*(?:to|toe|tow|tto|toh|tu|too)\\b"),
+  new RegExp("\\b" + G + "b\\s*p\\s*t\\b"),
+  new RegExp("\\b" + G + "bee\\s*pee\\s*tee\\b"),
+  /\b(?:hey|hi|ok|okay)\s+(?:potato|bo\s*tato|bow\s*tato)\b/
+];
+function matchWake(raw){
+  const t = raw.toLowerCase().replace(/[^a-z0-9' ]+/g," ").replace(/\s+/g," ").trim();
+  for(const re of WAKE){ const m = re.exec(t); if(m) return {rest: t.slice(m.index + m[0].length).trim()}; }
+  return null;
+}
+function updWakeUI(){
+  const on = $("wakeOn").checked; let t;
+  if(!on) t = "Off.";
+  else if(!SR) t = "This browser can't do speech recognition. Chrome, Edge or Safari can.";
+  else if(micOK===false) t = "Needs the microphone, which the browser is blocking here.";
+  else if(micOK===null) t = "Tap the core once to give BPT the microphone, then wake words switch on.";
+  else if(rec && rec._mode==="wake") t = "Listening for “Hey BoPoTo” or “BPT”.";
+  else if(convo) t = "Paused during the conversation.";
+  else t = "Starting…";
+  $("wakeStatus").textContent = t;
+  if(document.body.dataset.state==="idle") setState("idle");
+}
+function startWake(){
+  clearTimeout(wakeRetry);
+  if(!$("wakeOn").checked || micOK!==true || convo || busy || speaking || !SR || rec){ updWakeUI(); return; }
+  const r = new SR(); r._mode = "wake"; rec = r;
+  r.lang = navigator.language || "en-US"; r.continuous = true; r.interimResults = false;
+  r.onresult = e => {
+    if(rec!==r) return; wakeFails = 0;
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(!e.results[i].isFinal) continue;
+      const m = matchWake(e.results[i][0].transcript);
+      if(m){ killRec(); onWake(m.rest); return; }
+    }
+  };
+  r.onerror = e => {
+    if(rec!==r) return;
+    if(e.error==="not-allowed" || e.error==="service-not-allowed"){ r._blocked = true; micOK = false; setPerm("microphone","no","blocked"); }
+    else if(e.error!=="no-speech" && e.error!=="aborted"){ wakeFails++; log("Wake listener error: "+e.error); }
+  };
+  r.onend = () => {
+    if(rec!==r) return;
+    rec = null; updWakeUI();
+    if(r._blocked) return;
+    if(wakeFails >= 5){ log("Wake words paused after repeated errors. Toggle them off and on to retry."); return; }
+    wakeRetry = setTimeout(startWake, wakeFails ? 2000*wakeFails : 250);
+  };
+  try{ r.start(); }catch{ rec = null; }
+  updWakeUI();
+}
+function onWake(rest){
+  log("Wake word heard"); chime(); buzz(60);
+  convo = true; misses = 0; document.body.classList.add("convo");
+  $("capYou").textContent = ""; $("capBot").textContent = "";
+  if(rest && rest.length > 2) send(rest);
+  else say("Yes?", ()=>listenOnce());
+}
+
+/* ---------- conversation loop ---------- */
+const STOPS = new Set(["stop","stop listening","goodbye","good bye","bye","bye bye","that's all","thats all","that's it","thats it",
+  "never mind","nevermind","end conversation","end chat","go to sleep","we're done","were done","that will be all","that'll be all"]);
+function isStopPhrase(t){
+  const n = t.toLowerCase().replace(/[^a-z' ]/g,"").replace(/\s+/g," ").trim().replace(/^(ok|okay|thanks|thank you|alright|bpt|bopoto)\s+/,"");
+  return STOPS.has(n);
+}
+function activeInput(){ return $("stage").hidden ? $("input") : $("stageInput"); }
+function openStage(){
+  $("stage").hidden = false; document.body.classList.add("staged");
+  try{ const p = $("stage").requestFullscreen && $("stage").requestFullscreen(); p && p.catch && p.catch(()=>{}); }catch{}
+}
+function closeStage(){
+  if($("stage").hidden) return;
+  $("stage").hidden = true; document.body.classList.remove("staged");
+  try{ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }catch{}
+}
+async function startConvo(full){
+  if(!sample){ sys("BPT's reasoning isn't available in this view."); return; }
+  if(full) openStage();
+  if(convo){ return; }
+  convo = true; misses = 0; document.body.classList.add("convo");
+  stopSpeaking(); killRec(); updWakeUI();
+  $("capYou").textContent = ""; $("capBot").textContent = "";
+  log("Conversation started");
+  const ok = await ensureMic(true);
+  if(!convo) return;
+  if(ok){ chime(); listenOnce(); }
+  else dictationTurn();
+}
+function dictationTurn(){
+  setState("waiting");
+  $("stageHint").textContent = `The mic is blocked here, so ${dictHint()} to dictate. BPT sends after a 2-second pause. Say “goodbye” to finish.`;
+  if(!dictWarned){ dictWarned = true; sys(micBlockedMsg(micErr)); }
+  activeInput().focus();
+}
+function afterReply(){
+  if(convo){
+    if(micOK===true) listenOnce();
+    else { $("input").value = ""; $("stageInput").value = ""; dictationTurn(); }
+  } else { setState("idle"); startWake(); }
+}
+function endConvo(farewell){
+  if(!convo && $("stage").hidden) return;
+  convo = false; document.body.classList.remove("convo");
+  killRec(); clearTimeout(dictTimer);
+  if(busy && ctl) ctl.abort();
+  closeStage(); log("Conversation ended");
+  if(farewell) say(farewell);
+  else { stopSpeaking(); setState("idle"); startWake(); }
+  updWakeUI();
+}
+
+/* ================= the brain ================= */
+const TOOLS = [
+  {name:"device_status", description:"Returns live device info: time, time zone, battery %, charging, network type/speed, platform, CPU threads, memory, screen size, language, location (if shared), motion sensor tilt, camera state.", execute: ()=>deviceStatus()},
+  {name:"get_location", description:"Returns the device's GPS coordinates if available; otherwise the city the user saved; otherwise an error telling you to ask them.", execute: ()=>getLocation()},
+  {name:"set_location", description:"Saves the city or area the user says they are in, so you know their location from now on (GPS is usually blocked). Returns the saved value.",
+    inputSchema:{type:"object",properties:{place:{type:"string",description:"City or area, e.g. 'Manchester, UK'"}},required:["place"]},
+    execute: i=>saveCity(i.place)},
+  {name:"set_timer", description:"Starts a countdown timer that alerts the user by voice, vibration and notification when done. Returns the end time.",
+    inputSchema:{type:"object",properties:{seconds:{type:"number",description:"Duration in seconds"},label:{type:"string"}},required:["seconds"]},
+    execute: i=>setTimer(i.seconds, i.label)},
+  {name:"list_timers", description:"Lists running timers with seconds remaining.", execute: ()=>timers.map(t=>({label:t.label, secondsLeft:Math.round((t.ends-Date.now())/1000)}))},
+  {name:"cancel_timer", description:"Cancels running timers whose label contains the given text (case-insensitive). Returns how many were cancelled.",
+    inputSchema:{type:"object",properties:{label:{type:"string"}},required:["label"]},
+    execute: i=>{ const q=String(i.label||"").toLowerCase(); const hit=timers.filter(t=>t.label.toLowerCase().includes(q)); hit.forEach(t=>clearTimeout(t.handle)); timers=timers.filter(t=>!hit.includes(t)); renderTimers(); return {cancelled:hit.length}; }},
+  {name:"save_note", description:"Saves a short note to the user's notes list on this device (persists across visits).",
+    inputSchema:{type:"object",properties:{text:{type:"string"}},required:["text"]},
+    execute: i=>{ const t=String(i.text||"").slice(0,500); if(!t) throw new Error("empty note"); notes.unshift({text:t, at:Date.now()}); store.set("notes",notes); renderNotes(); log("Note saved"); return {ok:true, count:notes.length}; }},
+  {name:"list_notes", description:"Returns the user's saved notes, newest first, with index numbers.", execute: ()=>notes.map((n,i)=>({index:i, text:n.text, saved:new Date(n.at).toLocaleString()}))},
+  {name:"delete_note", description:"Deletes the note at the given index from list_notes.",
+    inputSchema:{type:"object",properties:{index:{type:"number"}},required:["index"]},
+    execute: i=>{ const k=Number(i.index); if(!(k>=0&&k<notes.length)) throw new Error("no such note"); const [n]=notes.splice(k,1); store.set("notes",notes); renderNotes(); return {deleted:n.text}; }},
+  {name:"send_notification", description:"Shows a system notification on the device. Returns whether it was shown (notifications must be allowed).",
+    inputSchema:{type:"object",properties:{title:{type:"string"},body:{type:"string"}},required:["body"]},
+    execute: i=>({shown: notify(String(i.title||"BPT"), String(i.body||""))})},
+  {name:"vibrate", description:"Vibrates the device (phones only) for a pattern of millisecond durations.",
+    inputSchema:{type:"object",properties:{pattern:{type:"array",items:{type:"number"}}}},
+    execute: i=>({vibrated: buzz(Array.isArray(i.pattern)&&i.pattern.length ? i.pattern.map(Number).slice(0,10) : [200])})},
+  {name:"copy_to_clipboard", description:"Copies text to the user's clipboard.",
+    inputSchema:{type:"object",properties:{text:{type:"string"}},required:["text"]},
+    execute: async i=>{ await navigator.clipboard.writeText(String(i.text||"")); log("Copied to clipboard"); return {ok:true}; }},
+];
+
+const RULES = () => `You are BPT (pronounced "BoPoTo"), a friendly, quick-witted personal assistant living in a web page on the user's own device. Always write your name as BPT.
+The user usually talks to you by voice and your replies are read aloud, so: 1–3 short sentences unless they ask for detail; no markdown, lists, tables, headings or emoji; write numbers and times naturally. Voice transcripts can contain recognition errors; interpret them charitably and only ask when truly unclear.
+The conversation is hands-free: after you reply, the user is listened to again, so don't say goodbye or close the conversation yourself; they end it by saying "goodbye" or "stop".
+You have tools that reach the device: device_status, get_location, timers, notes, notifications, vibration and clipboard. Use them whenever the question touches the device, the time, the user's notes or reminders; don't guess.
+If the user attaches a camera frame, screen snapshot or file, it arrives with their message; describe or use it directly.
+You cannot browse the web, open apps, read other files, send messages or make calls. If asked, say so plainly and suggest what you can do.
+${cityLine()}
+Current local time: ${new Date().toString()}.`;
+
+function setBusy(b){
+  busy = b;
+  ["sendBtn","stageSend"].forEach(id=>{ $(id).textContent = b ? "Stop" : "Send"; $(id).classList.toggle("stop", b); });
+}
+const ERR = {
+  not_granted:"Claude access was declined for this page. Reload the page to allow it.",
+  rate_limited:"Too many requests at once. Give it a moment, then try again.",
+  images_unavailable:"Images can't be sent to Claude in this view.",
+  cancelled:"Stopped."
+};
+async function send(override){
+  if(busy){ ctl && ctl.abort(); return; }
+  clearTimeout(dictTimer);
+  const src = activeInput();
+  const text = (typeof override==="string" ? override : src.value).trim();
+  if(!text && !pending.length) return;
+  $("input").value = ""; $("stageInput").value = ""; autoSize($("input")); autoSize($("stageInput"));
+  if(convo && !pending.length && isStopPhrase(text)){ addMsg("user", text); $("capYou").textContent = text; endConvo("Talk soon."); return; }
+  if(!sample){ sys("BPT's reasoning isn't available in this view."); if(convo) endConvo(); return; }
+  killRec(); stopSpeaking();
+  const atts = pending; pending = []; renderChips();
+
+  const display = text + (atts.length ? "\n" + atts.map(a=>(a.kind==="image"?"🖼 ":"📄 ")+a.name).join("  ") : "");
+  addMsg("user", display); $("capYou").textContent = text; $("capBot").textContent = "";
+  let content = text || "(Look at what I've attached.)";
+  atts.filter(a=>a.kind==="text").forEach(a=>{ content += `\n\n[Attached file: ${a.name}]\n${a.text.slice(0,60000)}`; });
+  const imgs = atts.filter(a=>a.kind==="image");
+  if(imgs.length) content += `\n\n[${imgs.map(a=>a.name).join(", ")} attached as image${imgs.length>1?"s":""}]`;
+  turns.push({role:"user", content});
+
+  const bubble = addMsg("bot", "Thinking…");
+  setState("thinking"); setBusy(true); updWakeUI();
+  ctl = new AbortController();
+  try{
+    const images = await Promise.all(imgs.map(a=>toJpeg(a.blob)));
+    let prior = turns.slice(0,-1).slice(-20);
+    while(prior.length && prior[0].role!=="user") prior = prior.slice(1);
+    const ans = await runClaude([...prior, {role:"user", content}], images, ctl.signal,
+      t => { bubble.textContent = t; $("capBot").textContent = t; $("transcript").scrollTop = $("transcript").scrollHeight; });
+    bubble.textContent = ans; $("capBot").textContent = ans;
+    turns.push({role:"assistant", content:ans});
+    hist.push({role:"user", content, display}, {role:"assistant", content:ans});
+    hist = hist.slice(-40); store.set("history_bpt", hist.map(h=>({...h, content:h.content.slice(0,4000)})));
+    setBusy(false);
+    say(ans, afterReply);
+  }catch(e){
+    setBusy(false);
+    turns.pop();
+    bubble.parentElement.remove();
+    const code = e && e.code;
+    if(code==="cancelled"){ sys("Stopped."); afterReply(); return; }
+    sys((e && e.message) || "That request failed. Try again.");
+    if(code==="not_granted"){ banner(ERR.not_granted); if(convo) endConvo(); else setState("idle"); return; }
+    afterReply();
+  }
+}
+
+/* ---------- Claude (sample capability) ---------- */
+function getTier(){ return store.get("tier", "quick"); }
+async function toJpeg(blob){
+  try{
+    const bmp = await createImageBitmap(blob);
+    const k = Math.min(1, 1568/Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width*k); c.height = Math.round(bmp.height*k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(r=>c.toBlob(r, "image/jpeg", 0.85));
+  }catch{ return blob; }
+}
+async function runClaude(messages, images, signal, onText){
+  const input = [{role:"user", content:RULES()}, {role:"assistant", content:"Understood. Standing by."}, ...messages];
+  const tools = TOOLS.map(t=>{
+    const o = {name:t.name, description:t.description, execute: async inp=>{ log("Tool: "+t.name); return await t.execute(inp||{}); }};
+    if(t.inputSchema) o.inputSchema = t.inputSchema;
+    return o;
+  });
+  const opts = {cache:false, signal, modelTier:getTier(), tools, onText:({text})=>onText(text)};
+  if(images.length) opts.images = images;
+  try{
+    const {text} = await sample(input, opts);
+    return (text || "").trim() || "Done.";
+  }catch(e){
+    const code = e && e.code;
+    throw {code, message: ERR[code] || `That request failed (${code || "unknown error"}). Try again.`};
+  }
+}
+
+/* ================= composer ================= */
+function autoSize(t){ t.style.height="auto"; t.style.height=Math.min(140,t.scrollHeight)+"px"; }
+function wireInput(el){
+  el.addEventListener("input", () => {
+    autoSize(el); clearTimeout(dictTimer);
+    const dict = $("autoSend").checked || (convo && micOK!==true);
+    if(!dict || listening || busy || speaking) return;
+    dictTimer = setTimeout(() => { if(!busy && !speaking && el.value.trim()) send(); }, 2000);
+  });
+  el.addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } });
+  el.addEventListener("paste", e=>{
+    [...(e.clipboardData?.items||[])].filter(i=>i.type.startsWith("image/")).forEach(i=>{ const f=i.getAsFile(); if(f) attach({kind:"image", name:"pasted image", blob:f}); });
+  });
+}
+
+/* ================= wiring ================= */
+$("coreBtn").innerHTML = coreSVG();
+$("stageCore").innerHTML = coreSVG();
+$("coreBtn").onclick = () => convo ? endConvo() : startConvo(false);
+$("stageCore").onclick = () => endConvo();
+$("endBtn").onclick = () => endConvo();
+$("convoBtn").onclick = () => startConvo(true);
+$("sendBtn").onclick = () => send();
+$("stageSend").onclick = () => send();
+wireInput($("input")); wireInput($("stageInput"));
+$("micBtn").onclick = async () => {
+  if(listening){ stopTurn(); return; }
+  const ok = await ensureMic(true);
+  if(ok) listenOnce(); else { sys(micBlockedMsg(micErr)); $("input").focus(); }
+};
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape" && convo){ endConvo(); return; }
+  if(e.code==="Space" && document.activeElement===document.body && !e.repeat && !convo){
+    e.preventDefault(); ensureMic(true).then(ok=>{ if(ok) listenOnce(); });
+  }
+});
+document.addEventListener("keyup", e=>{ if(e.code==="Space" && listening && !convo && document.activeElement===document.body) stopTurn(); });
+
+$("wakeOn").checked = store.get("wake", true);
+$("wakeOn").onchange = async () => {
+  store.set("wake", $("wakeOn").checked);
+  if($("wakeOn").checked){ wakeFails = 0; const ok = await ensureMic(true); if(ok) startWake(); }
+  else if(rec && rec._mode==="wake") killRec();
+  updWakeUI();
+};
+$("autoSend").checked = store.get("autoSend", false);
+$("autoSend").onchange = () => store.set("autoSend", $("autoSend").checked);
+$("voiceSel").onchange = () => store.set("voice", $("voiceSel").value);
+
+$("locBtn").onclick = getLocation;
+$("citySave").onclick = () => saveCity($("cityIn").value);
+$("cityIn").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); saveCity($("cityIn").value); } });
+$("motionBtn").onclick = startMotion;
+$("camBtn").onclick = () => camStream ? stopCam() : startCam();
+$("flipBtn").onclick = () => { facing = facing==="user" ? "environment" : "user"; stopCam(); startCam(); };
+$("snapBtn").onclick = async () => { if(!camStream) return; const b = await frameToBlob($("cam")); if(b){ attach({kind:"image", name:"camera frame", blob:b}); log("Camera frame attached"); } };
+$("screenBtn").onclick = screenSnap;
+$("photoBtn").onclick = () => $("photoIn").click();
+$("photoIn").onchange = e => {
+  const f = e.target.files[0];
+  if(f){ attach({kind:"image", name:"photo", blob:f}); log("Photo attached"); activeInput().focus(); }
+  e.target.value = "";
+};
+$("fileBtn").onclick = () => $("fileIn").click();
+$("fileIn").onchange = async e => {
+  for(const f of e.target.files){
+    if(f.type.startsWith("image/")) attach({kind:"image", name:f.name, blob:f});
+    else if(f.size > 400000) sys(`${f.name} is too large to read here (over 400 KB).`);
+    else { try{ attach({kind:"text", name:f.name, text: await f.text()}); }catch{ sys(`Couldn't read ${f.name}.`); } }
+    log("Opened "+f.name);
+  }
+  e.target.value = "";
+};
+$("pasteBtn").onclick = async () => {
+  try{ const t = await navigator.clipboard.readText();
+    const el = activeInput();
+    if(t){ el.value += (el.value?"\n":"") + t; autoSize(el); log("Clipboard pasted"); } else sys("Clipboard is empty.");
+  }catch{ markBlocked(["pasteBtn"], NOTE.clip, "filesTool"); sys(NOTE.clip); }
+};
+$("notifBtn").onclick = async () => {
+  if(!("Notification" in window)){ sys("Notifications aren't supported here."); return; }
+  try{ const r = await Notification.requestPermission();
+    setPerm("notifications", r==="granted"?"ok":"no", r==="granted"?"allowed":"blocked");
+    if(r==="granted"){ $("notifBtn").classList.add("on"); $("notifBtn").textContent="Notifications on"; }
+    else denied("notifications");
+  }catch{ setPerm("notifications","no","blocked"); denied("notifications"); }
+};
+$("wakeLockBtn").onclick = async () => {
+  if(wakeLock){ await wakeLock.release(); return; }
+  try{ wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", ()=>{ wakeLock=null; $("wakeLockBtn").classList.remove("on"); $("wakeLockBtn").textContent="Keep screen awake"; });
+    $("wakeLockBtn").classList.add("on"); $("wakeLockBtn").textContent="Screen stays awake"; log("Wake lock on");
+  }catch{ markBlocked(["wakeLockBtn"], NOTE.wake, "deviceTool"); sys(NOTE.wake); }
+};
+$("themeBtn").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  const next = cur==="dark" ? "light" : "dark"; document.documentElement.dataset.theme = next; store.set("theme", next);
+};
+$("clearBtn").onclick = () => {
+  turns = []; hist = []; store.set("history_bpt", []);
+  $("transcript").innerHTML = ""; sys("Conversation cleared. Notes and timers are kept."); log("Conversation cleared");
+};
+$("exportBtn").onclick = async () => {
+  if(!downloads) return;
+  const md = "# BPT log\n\n" + hist.map(h=>`**${h.role==="user"?"You":"BPT"}:** ${h.display||h.content}`).join("\n\n")
+    + (notes.length ? "\n\n## Notes\n\n" + notes.map(n=>"- "+n.text).join("\n") : "");
+  try{ await downloads.save({filename:`bpt-log-${new Date().toISOString().slice(0,10)}.md`, data:md}); }
+  catch(e){ if(e.code!=="declined") sys("Saving the log isn't available here."); }
+};
+addEventListener("online", ()=>{updNet();log("Back online");});
+addEventListener("offline", ()=>{updNet();log("Went offline");});
+addEventListener("resize", updSys);
+navigator.connection && navigator.connection.addEventListener("change", ()=>{updNet();log("Network changed: "+navigator.connection.effectiveType);});
+
+/* ================= init ================= */
+{ const t = store.get("theme", null); if(t) document.documentElement.dataset.theme = t; }
+["microphone","camera","geolocation","notifications"].forEach(watchPerm);
+if(micFramed) setPerm("microphone","no","blocked by page frame");
+updNet(); updSys(); initBattery();
+applyPolicy();
+{ const c = store.get("city",""); $("cityIn").value = c; if(c) $("coords").textContent = c + " (typed)"; }
+renderNotes(); renderTimers();
+hist.forEach(m=>addMsg(m.role==="user"?"user":"bot", m.display||m.content));
+if(synth){ loadVoices(); synth.onvoiceschanged = loadVoices; }
+setInterval(tick, 1000); tick();
+setState("idle"); updWakeUI();
+
+$("modelSel").value = getTier();
+$("modelSel").onchange = () => { store.set("tier", $("modelSel").value); log("Thinking: " + $("modelSel").selectedOptions[0].textContent); };
+(async()=>{
+  const framed = (()=>{ try{ return window.top !== window.self; }catch{ return true; } })();
+  if(!window.claude || !window.claude.use || !framed){ banner("BPT is open in its own browser tab, where it can't reach Claude. Open it from inside Claude instead, from the chat or your artifacts list. Device panels still work here."); log("Brain: opened outside Claude's viewer"); return; }
+  try{ sample = await claude.use("sample"); }catch{}
+  if(!sample){ banner("Claude didn't connect BPT to an account in this view. Make sure you're signed in to Claude, then reload. Device panels still work."); log("Brain: Claude viewer gave no access"); }
+  else log("Brain: connected to Claude");
+  try{ downloads = await claude.use("downloads"); }catch{}
+  if(!downloads) $("exportBtn").hidden = true;
+})();
+
+// Start wake words automatically only if the mic is already allowed (no prompt on load).
+(async()=>{
+  if(!SR || micFramed){ micOK = false; updWakeUI(); return; }
+  try{
+    const p = await navigator.permissions.query({name:"microphone"});
+    if(p.state==="granted"){ micOK = true; setPerm("microphone","ok","allowed"); startWake(); }
+  }catch{}
+  updWakeUI();
+})();
+
+log("BPT online");
+})();
+</script>
+</body>
+</html>
